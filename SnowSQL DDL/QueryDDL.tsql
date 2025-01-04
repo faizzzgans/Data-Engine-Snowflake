@@ -1,0 +1,142 @@
+CREATE DATABASE project_db;
+CREATE SCHEMA project_db_schema;
+
+-- Create Tables
+
+CREATE TABLE DimDate(
+    DateID INT PRIMARY KEY,
+    Date DATE,
+    DayofWeek VARCHAR(50),
+    Month VARCHAR(50),
+    Quarter INT,
+    Year INT,
+    Isweekend BOOLEAN
+    );
+
+CREATE TABLE DimLoyaltyProgram(
+    LoyaltyProgramID INT PRIMARY KEY,
+    ProgramName VARCHAR(100),
+    ProgramTier VARCHAR(50),
+    PointsAccrued INT
+);
+
+CREATE TABLE DimCustomer(
+CustomerID INT PRIMARY KEY autoincrement start 1 increment 1,
+FirstName VARCHAR(100),
+LastName VARCHAR(100),
+Gender VARCHAR(100),
+DateOfBirth DATE,
+Email VARCHAR(100),
+PhoneNumber VARCHAR(100),
+Address VARCHAR(255),
+City VARCHAR(100),
+State VARCHAR(100),
+PostalCode VARCHAR(100),
+Country VARCHAR(100),
+LoyaltyProgramID INT
+);
+
+CREATE TABLE DimProduct(
+    ProductID INT PRIMARY KEY autoincrement start 1 increment 1,
+    ProductName VARCHAR(100),
+    Category VARCHAR(100),
+    Brand VARCHAR(100),
+    UnitPrice DECIMAL(10, 2)
+);
+
+CREATE TABLE DimStore(
+    StoreID INT PRIMARY KEY autoincrement start 1 increment 1,
+    StoreName VARCHAR(100),
+    StoreType VARCHAR(100),
+    StoreOpeningDate DATE,
+    Address VARCHAR(255),
+    City VARCHAR(100),
+    State VARCHAR(100),
+    Country VARCHAR(100),
+    Region VARCHAR(100),
+    ManagerName VARCHAR(100)
+);
+
+CREATE TABLE FactOrders(
+OrderID INT PRIMARY KEY autoincrement start 1 increment 1,
+DateID INT,
+ProductID INT,
+StoreID INT,
+CustomerID INT,
+QuantityOrderded INT,
+OrderAmount DECIMAL(10, 2),
+DiscountAmount DECIMAL(10, 2),
+ShippingCost DECIMAL(10, 2),
+TotalAmount DECIMAL(10, 2),
+FOREIGN KEY (DateID) REFERENCES DimDate(DateID),
+FOREIGN KEY (ProductID) REFERENCES DimProduct(ProductID),
+FOREIGN KEY (StoreID) REFERENCES DimStore(StoreID),
+FOREIGN KEY (CustomerID) REFERENCES DimCustomer(CustomerID)
+);
+
+CREATE OR REPLACE FILE FORMAT CSV_SOURCE_FILE_FORMAT
+TYPE = 'CSV'
+SKIP_HEADER = 1
+FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+DATE_FORMAT = 'YYYY-MM-DD';
+
+-- STAGE = Place to load/unload file
+CREATE or REPLACE STAGE TESTSTAGE;
+
+-- run for local usiong snowflake
+
+PUT local_file_path STAGE PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE
+
+
+-- Load Data
+COPY INTO DIMLOYALTYPROGRAM
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/DimLoyaltyInfo/DimLoyaltyInfo.csv
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM DIMLOYALTYPROGRAM;
+
+-- Specify nama kolom yang akan di load karena menggunakan Auto Increment untuk ID nya (kolom semu/tidak ada di file asli)
+
+COPY INTO DIMCUSTOMER(FirstName,LastName,Gender,DateOfBirth,Email,PhoneNumber,Address,City,State,PostalCode,Country,LoyaltyProgramID)
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/DimCustomerData/DimCustomerData.csv
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM DIMCUSTOMER;
+
+
+COPY INTO DIMPRODUCT(ProductName, Category, Brand, UnitPrice)
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/DimProductData/DimProductData.csv
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM DIMPRODUCT;
+
+COPY INTO DIMSTORE(StoreName,StoreType,StoreOpeningDate,Address,City,State,Country,Region,ManagerName)
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/DimStoreData/DimStoreData.csv
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM DIMSTORE;
+
+COPY INTO FACTORDERS(DateID,ProductID,StoreID,CustomerID,QuantityOrderded,OrderAmount,DiscountAmount,ShippingCost,TotalAmount)
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/factorders/factorders.csv
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM FACTORDERS;
+
+COPY INTO FACTORDERS(DateID,ProductID,StoreID,CustomerID,QuantityOrderded,OrderAmount,DiscountAmount,ShippingCost,TotalAmount)
+FROM @PROJECT_DB.PROJECT_DB_SCHEMA.TESTSTAGE/LandingDirectory/
+FILE_FORMAT = (FORMAT_NAME = 'CSV_SOURCE_FILE_FORMAT');
+
+SELECT * FROM FACTORDERS;
+
+-- -- Create User baru untuk pengelolaan data dengan query dan Power BI
+-- CREATE OR REPLACE USER faizzmadd_powerbi
+-- PASSWORD = ''
+-- LOGIN_NAME = 'faizzmadd_powerbi'
+-- DEFAULT_ROLE = 'ACCOUNTADMIN'
+-- DEFAULT_WAREHOUSE = 'COMPUTE_WH'
+-- MUST_CHANGE_PASSWORD = TRUE;
+
+-- GRANT ROLE ACCOUNTADMIN TO USER faizzmadd_powerbi;
+
+
+
